@@ -8,6 +8,7 @@ import { getCryptoDetails } from '@/lib/coingecko';
 import CoinTabs from '@/components/crypto/CoinTabs';
 import PriceChart from '@/components/crypto/PriceChart';
 import NewsSection from '@/components/crypto/NewsSection';
+import PriceHistoryTable from '@/components/crypto/PriceHistoryTable';
 
 export default function CoinDetailPage() {
   const params = useParams();
@@ -74,7 +75,6 @@ export default function CoinDetailPage() {
                 ${(coin.market_data?.market_cap?.usd / 1e9).toFixed(2)}B
                 </div>
             </div>
-
             <div className="bg-white rounded-lg shadow p-4">
                 <div className="text-sm text-gray-600 mb-1">24h Volume</div>
                 <div className="text-xl font-bold text-gray-900">
@@ -126,20 +126,31 @@ export default function CoinDetailPage() {
 
         {/* Tab Content */}
         <div className="bg-white rounded-lg shadow-xl p-6">
-            {activeTab === 'overview' && (
-            <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Price Chart</h2>
-                <PriceChart coinId={params.id as string} />
-                
-                <div className="mt-8">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">About {coin.name}</h3>
-                <div 
-                    className="text-gray-700 prose max-w-none"
-                    dangerouslySetInnerHTML={{ __html: coin.description?.en || 'No description available.' }}
-                />
-                </div>
+          {activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Price Chart */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Price Chart</h3>
+              <PriceChart coinId={params.id as string} />
             </div>
-            )}
+            <PriceHistoryTable coinId={params.id as string} />
+            {/* About Section */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                About {coin.name}
+              </h3>
+              
+              {coin.description?.en ? (
+                <div 
+                  className="text-gray-700 leading-relaxed prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: coin.description.en }}
+                />
+              ) : (
+                <p className="text-gray-600">No description available.</p>
+              )}
+            </div>
+          </div>
+        )}
             {activeTab === 'news' && (
             <NewsSection coinSymbol={coin.symbol} />
             )}

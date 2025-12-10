@@ -7,6 +7,7 @@ import { getTopCryptos } from '@/lib/coingecko';
 import type { CryptoAsset } from '@/types/crypto';
 import CoinCard from '@/components/crypto/CoinCard';
 import Navbar from '@/components/layout/Navbar';
+import ExploreCrypto from '@/components/crypto/ExploreCrypto';
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -24,7 +25,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchCryptos = async () => {
       setIsLoading(true);
-      const data = await getTopCryptos(25);
+      const data = await getTopCryptos(12);
       setCryptos(data);
       setIsLoading(false);
     };
@@ -50,7 +51,8 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-slate-50">
       <Navbar />
-      
+    <div className="mb-8">
+    </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -61,6 +63,8 @@ export default function DashboardPage() {
             Live prices and market data
           </p>
         </div>
+
+        <ExploreCrypto />
 
         {/* Search Bar */}
         <div className="mb-6">
@@ -81,7 +85,7 @@ export default function DashboardPage() {
         ) : (
           <>
             <div className="mb-4 text-sm text-gray-600">
-              Showing {filteredCryptos.length} of {cryptos.length} cryptocurrencies
+              Showing {filteredCryptos.length} cryptocurrencies
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

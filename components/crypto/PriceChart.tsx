@@ -14,31 +14,36 @@ export default function PriceChart({ coinId }: PriceChartProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchChartData = async () => {
-      setIsLoading(true);
-      try {
-        const response = await axios.get(
-          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
-          {
-            params: {
-              vs_currency: 'usd',
-              days: timeframe,
-            },
-          }
-        );
-
-        const formattedData = response.data.prices.map((item: any) => ({
-          timestamp: new Date(item[0]).toLocaleDateString(),
-          price: item[1],
-        }));
-
-        setChartData(formattedData);
-      } catch (error) {
-        console.error('Error fetching chart data:', error);
+  const fetchChartData = async () => {
+  setIsLoading(true);
+  
+  try {
+    // Add delay to prevent rate limiting
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const response = await axios.get(
+      `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
+      {
+        params: {
+          vs_currency: 'usd',
+          days: timeframe,
+        },
       }
-      setIsLoading(false);
-    };
+    );
 
+    const formattedData = response.data.prices.map((item: any) => ({
+      timestamp: new Date(item[0]).toLocaleDateString(),
+      price: item[1],
+    }));
+
+    setChartData(formattedData);
+  } catch (error) {
+    console.error('Error fetching chart data:', error);
+    setChartData([]); // Set empty on error
+  }
+  
+  setIsLoading(false);
+};
     fetchChartData();
   }, [coinId, timeframe]);
 
@@ -71,11 +76,18 @@ export default function PriceChart({ coinId }: PriceChartProps) {
 
       {/* Chart */}
       {isLoading ? (
-        <div className="h-96 flex items-center justify-center">
-          <div className="text-gray-600">Loading chart...</div>
-        </div>
-      ) : (
-        <ResponsiveContainer width="100%" height={400}>
+  <div className="h-96 flex items-center justify-center">
+    <div className="animate-pulse text-gray-600">Loading chart...</div>
+  </div>
+) : chartData.length === 0 ? (
+  <div className="h-96 flex items-center justify-center">
+    <div className="text-gray-600">
+      <p>Chart temporarily unavailable</p>
+      <p className="text-sm mt-2">Please refresh in a moment</p>
+    </div>
+  </div>
+) : (
+  <ResponsiveContainer width="100%" height={400}>
           <LineChart data={chartData}>
             <XAxis 
               dataKey="timestamp" 
@@ -102,8 +114,8 @@ export default function PriceChart({ coinId }: PriceChartProps) {
               dot={false}
             />
           </LineChart>
-        </ResponsiveContainer>
-      )}
+  </ResponsiveContainer>
+)}
     </div>
   );
 }
