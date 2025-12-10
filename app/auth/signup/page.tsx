@@ -31,15 +31,17 @@ export default function SignupPage() {
 
     try {
       const userCredential = await signUp(email, password);
-      
-      // Create user profile in Firestore
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        email: email,
-        paperTradingBalance: 10000,
-        createdAt: new Date(),
-      });
 
-      router.push('/dashboard');
+      if (userCredential?.user) {
+        // Create user profile in Firestore
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
+          email: email,
+          paperTradingBalance: 10000,
+          createdAt: new Date(),
+        });
+        
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       if (err.code === 'auth/email-already-in-use') {
         setError('Email already in use. Did you mean to sign in?');
