@@ -3,7 +3,7 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-950 via-blue-900 to-slate-900 p-4">
       <div className="text-center space-y-6 max-w-3xl">
         <h1 className="text-6xl font-bold text-white">
           Crypto Trading Dashboard

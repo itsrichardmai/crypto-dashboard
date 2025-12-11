@@ -158,7 +158,7 @@ export default function CoinDetailPage() {
     <div>
         <h2 className="text-2xl font-bold text-gray-900 mb-6">AI-Powered Analysis</h2>
         
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-8 text-center">
+        <div className="bg-gradient-to-r from-slate-50 via-blue-50 to-indigo-50 rounded-lg p-8 text-center">
         <div className="text-6xl mb-4">🤖</div>
         <h3 className="text-2xl font-bold text-gray-900 mb-2">
             AI Analysis Coming Soon
