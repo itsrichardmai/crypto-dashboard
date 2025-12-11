@@ -7,9 +7,9 @@ const BASE_URL = process.env.NEXT_PUBLIC_COINGECKO_API_URL;
 const cache = new Map();
 const CACHE_DURATION = 60000; // 1 minute
 
-export async function getTopCryptos(limit: number = 10): Promise<CryptoAsset[]> {
+export async function getTopCryptos(limit: number = 100): Promise<CryptoAsset[]> {
   try {
-const response = await axios.get(`${BASE_URL}/coins/markets`, {
+    const response = await axios.get(`${BASE_URL}/coins/markets`, {
       params: {
         vs_currency: 'usd',
         order: 'market_cap_desc',

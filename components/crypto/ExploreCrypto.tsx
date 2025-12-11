@@ -7,7 +7,7 @@ import Link from 'next/link';
 import type { CryptoAsset } from '@/types/crypto';
 
 export default function ExploreCrypto() {
-  const [activeCategory, setActiveCategory] = useState<'popular' | 'new' | 'stablecoins' | 'trending'>('popular');
+  const [activeCategory, setActiveCategory] = useState<'popular' | 'gainers' | 'losers' | 'stablecoins'>('popular');
   const [coins, setCoins] = useState<CryptoAsset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -17,69 +17,38 @@ export default function ExploreCrypto() {
       let data: CryptoAsset[] = [];
 
       try {
+        // Get top 100 coins once
+        const allCoins = await getTopCryptos(100);
+
         switch (activeCategory) {
-          case 'popular':
-            // High volume coins
-            data = await getTopCryptos(5);
-            data.sort((a, b) => b.total_volume - a.total_volume);
-            break;
+  case 'popular':
+    // Top 12 by market cap
+    data = allCoins.slice(0, 12);
+    break;
 
-          case 'new':
-            // Recently added coins (sort by age approximation)
-            const response = await axios.get(
-              'https://api.coingecko.com/api/v3/coins/markets',
-              {
-                params: {
-                  vs_currency: 'usd',
-                  order: 'market_cap_desc',
-                  per_page: 50,
-                  page: 1,
-                }
-              }
-            );
-            // Filter for newer coins (smaller market cap rank but high volume)
-            data = response.data
-              .filter((coin: any) => coin.market_cap_rank > 100 && coin.market_cap_rank < 200)
-              .slice(0, 10);
-            break;
+  case 'gainers':
+    // Top 12 gainers in 24h
+    data = allCoins
+      .filter(c => c.price_change_percentage_24h > 0)
+      .sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h)
+      .slice(0, 12);
+    break;
 
-        case 'stablecoins':
-          // Stablecoins - call once with multiple IDs
-          const stablecoins = ['tether', 'usd-coin', 'dai', 'binancecoin', 'true-usd'];
-          const stableResponse = await axios.get(
-            'https://api.coingecko.com/api/v3/coins/markets',
-            {
-              params: {
-                vs_currency: 'usd',
-                ids: stablecoins.join(','),
-                order: 'market_cap_desc',
-                per_page: 10,
-              }
-            }
-          );
-          data = stableResponse.data;
-          break;
+  case 'losers':
+    // Top 12 losers in 24h
+    data = allCoins
+      .filter(c => c.price_change_percentage_24h < 0)
+      .sort((a, b) => a.price_change_percentage_24h - b.price_change_percentage_24h)
+      .slice(0, 12);
+    break;
 
-          case 'trending':
-            // Trending coins from CoinGecko
-            const trendingResponse = await axios.get(
-              'https://api.coingecko.com/api/v3/search/trending'
-            );
-            
-            // Get detailed data for trending coins
-            const trendingIds = trendingResponse.data.coins.slice(0, 10).map((c: any) => c.item.id);
-            const detailsResponse = await axios.get(
-              'https://api.coingecko.com/api/v3/coins/markets',
-              {
-                params: {
-                  vs_currency: 'usd',
-                  ids: trendingIds.join(','),
-                }
-              }
-            );
-            data = detailsResponse.data;
-            break;
-        }
+  case 'stablecoins':
+    // Filter stablecoins from already loaded data
+    data = allCoins.filter(c => 
+      ['usdt', 'usdc', 'dai', 'busd', 'tusd'].includes(c.symbol.toLowerCase())
+    );
+    break;
+}
 
         setCoins(data);
       } catch (error) {
@@ -92,12 +61,12 @@ export default function ExploreCrypto() {
     fetchCoins();
   }, [activeCategory]);
 
-  const categories = [
-    { id: 'popular', label: 'Popular', icon: '🔥' },
-    { id: 'trending', label: 'Trending', icon: '📈' },
-    { id: 'new', label: 'Newly Listed', icon: '✨' },
-    { id: 'stablecoins', label: 'Stablecoins', icon: '💵' },
-  ];
+const categories = [
+  { id: 'popular', label: 'Popular', icon: '🔥' },
+  { id: 'gainers', label: 'Top Gainers', icon: '📈' },
+  { id: 'losers', label: 'Top Losers', icon: '📉' },
+  { id: 'stablecoins', label: 'Stablecoins', icon: '💵' },
+];
 
   return (
     <div className="bg-white rounded-lg shadow-xl p-6 mb-8">
