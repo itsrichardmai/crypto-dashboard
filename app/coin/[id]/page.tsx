@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { getCryptoDetails } from '@/lib/coingecko';
 import Navbar from '@/components/layout/Navbar';
 import CoinTabs from '@/components/crypto/CoinTabs';
-import PriceChart from '@/components/crypto/PriceChart';
+import TradingViewChart from '@/components/crypto/TradingViewChart';
 import NewsSection from '@/components/crypto/NewsSection';
 import PriceHistoryTable from '@/components/crypto/PriceHistoryTable';
 import TradeModal from '@/components/portfolio/TradeModal';
@@ -211,7 +211,7 @@ export default function CoinDetailPage() {
               {/* Price Chart */}
               <div className="bg-white rounded-lg shadow-lg p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">Price Chart</h3>
-                <PriceChart coinId={params.id as string} />
+                <TradingViewChart symbol={coin.symbol} />
               </div>
 
               {/* About Section */}

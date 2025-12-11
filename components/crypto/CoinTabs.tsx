@@ -14,15 +14,15 @@ export default function CoinTabs({ activeTab, setActiveTab }: CoinTabsProps) {
   ];
 
   return (
-    <div className="flex gap-2 border-b border-gray-200">
+    <div className="flex gap-2 border-b-2 border-gray-200 bg-white rounded-t-lg">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id as any)}
-          className={`px-6 py-3 font-medium transition ${
+          className={`px-6 py-3 font-semibold transition-all ${
             activeTab === tab.id
-              ? 'border-b-2 border-indigo-600 text-indigo-600'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'border-b-4 border-indigo-600 text-indigo-600 bg-indigo-50'
+              : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
           }`}
         >
           {tab.label}
