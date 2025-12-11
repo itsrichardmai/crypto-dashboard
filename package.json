@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "clean": "rm -rf .next node_modules/.cache",
+    "fresh": "npm run clean && npm run dev"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",

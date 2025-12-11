@@ -67,13 +67,21 @@ export default function PortfolioPage() {
         const holdingsWithPrices = await Promise.all(
           userHoldings.map(async (holding) => {
             const coinId = SYMBOL_TO_ID[holding.symbol] || holding.symbol.toLowerCase();
-            const price = await getCryptoPrice(coinId);
+            
+            // Try to get current price
+            let price = await getCryptoPrice(coinId);
+            
+            // If API fails, use average cost basis as fallback
+            if (!price || price === 0) {
+              price = holding.avgCostBasis;
+            }
+            
             return {
               ...holding,
-              currentPrice: price || 0,
-              currentValue: (price || 0) * holding.quantity,
-              gainLoss: ((price || 0) * holding.quantity) - holding.totalCost,
-              gainLossPercent: (((price || 0) * holding.quantity) - holding.totalCost) / holding.totalCost * 100,
+              currentPrice: price,
+              currentValue: price * holding.quantity,
+              gainLoss: (price * holding.quantity) - holding.totalCost,
+              gainLossPercent: ((price * holding.quantity) - holding.totalCost) / holding.totalCost * 100,
             };
           })
         );
