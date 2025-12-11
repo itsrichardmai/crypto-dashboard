@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { CryptoAsset } from '@/types/crypto';
 
 const BASE_URL = process.env.NEXT_PUBLIC_COINGECKO_API_URL;
+const API_KEY = process.env.NEXT_PUBLIC_COINGECKO_API_KEY;
 
 // Cache to prevent rate limiting
 const cache = new Map();
