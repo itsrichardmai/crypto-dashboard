@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
@@ -30,11 +30,14 @@ export default function SignupPage() {
     }
 
     try {
-      const userCredential = await signUp(email, password);
-
-      if (userCredential?.user) {
+      await signUp(email, password);
+      
+      // Get the current user after signup
+      const user = auth.currentUser;
+      
+      if (user) {
         // Create user profile in Firestore
-        await setDoc(doc(db, 'users', userCredential.user.uid), {
+        await setDoc(doc(db, 'users', user.uid), {
           email: email,
           paperTradingBalance: 10000,
           createdAt: new Date(),
