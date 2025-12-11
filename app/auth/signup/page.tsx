@@ -71,51 +71,6 @@ export default function SignupPage() {
     }
   };
 
-const handleTrade = async (
-  action: 'BUY' | 'SELL', 
-  quantity: number, 
-  orderType: 'market' | 'limit',
-  exchange: string
-) => {
-  if (!user || !coin) return;
-
-  const result = action === 'BUY'
-    ? await executeBuyWithFees(
-        user.uid, 
-        coin.symbol.toUpperCase(), 
-        coin.name, 
-        quantity, 
-        coin.market_data.current_price.usd,
-        orderType,
-        exchange
-      )
-    : await executeSellWithFees(
-        user.uid, 
-        coin.symbol.toUpperCase(), 
-        coin.name, 
-        quantity, 
-        coin.market_data.current_price.usd,
-        orderType,
-        exchange
-      );
-
-  if (result.success) {
-    // Refresh data
-    const balance = await getUserBalance(user.uid);
-    setUserBalance(balance);
-    
-    const holdings = await getUserHoldings(user.uid);
-    const holding = holdings.find(h => h.symbol === coin.symbol.toUpperCase());
-    setUserHoldings(holding?.quantity || 0);
-    
-    alert(result.message);
-  } else {
-    alert(result.message);
-  }
-};
-
-
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 p-4">
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
