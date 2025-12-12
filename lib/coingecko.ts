@@ -36,13 +36,7 @@ export async function getTopCryptos(limit: number = 100): Promise<CryptoAsset[]>
 
 export async function getCryptoPrice(id: string): Promise<number | null> {
   try {
-    const response = await axios.get(`${BASE_URL}/simple/price`, {
-      params: {
-        ids: id,
-        vs_currencies: 'usd',
-      },
-      headers: getHeaders(),
-    });
+    const response = await axios.get(`/api/price?id=${id}`);
     return response.data[id]?.usd || null;
   } catch (error) {
     console.error('Error fetching crypto price:', error);

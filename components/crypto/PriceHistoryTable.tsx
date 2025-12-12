@@ -7,7 +7,9 @@ interface PriceHistoryTableProps {
   coinId: string;
 }
 
-interface HistoryRow {
+type Timeframe = '1D' | '1W' | '1M' | '1Y';
+
+interface PriceData {
   date: string;
   open: number;
   high: number;
@@ -16,9 +18,17 @@ interface HistoryRow {
   change: number;
 }
 
+const API_KEY = process.env.NEXT_PUBLIC_COINGECKO_API_KEY;
+
+const getHeaders = () => {
+  return API_KEY ? {
+    'x-cg-demo-api-key': API_KEY
+  } : {};
+};
+
 export default function PriceHistoryTable({ coinId }: PriceHistoryTableProps) {
-  const [timeframe, setTimeframe] = useState<'1' | '7' | '30' | '365'>('7');
-  const [historyData, setHistoryData] = useState<HistoryRow[]>([]);
+  const [timeframe, setTimeframe] = useState<Timeframe>('1W');
+  const [priceData, setPriceData] = useState<PriceData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -27,199 +37,152 @@ export default function PriceHistoryTable({ coinId }: PriceHistoryTableProps) {
       
       try {
         // Add delay to prevent rate limiting
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         const response = await axios.get(
           `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
           {
             params: {
               vs_currency: 'usd',
-              days: timeframe,
-              interval: timeframe === '1' ? 'hourly' : 'daily',
+              days: getDays(timeframe),
             },
+            headers: getHeaders(),
           }
         );
 
-        // Process data into OHLC format
         const prices = response.data.prices;
-        const rows: HistoryRow[] = [];
-
-        if (timeframe === '1') {
-          // For 1 day, group by hour (24 hours)
-          for (let i = 0; i < prices.length; i += 4) {
-            const chunk = prices.slice(i, i + 4);
-            if (chunk.length > 0) {
-              const priceValues = chunk.map((p: any) => p[1]);
-              const open = priceValues[0];
-              const close = priceValues[priceValues.length - 1];
-              const high = Math.max(...priceValues);
-              const low = Math.min(...priceValues);
-              const change = ((close - open) / open) * 100;
-
-              rows.push({
-                date: new Date(chunk[0][0]).toLocaleString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                }),
-                open,
-                high,
-                low,
-                close,
-                change,
-              });
-            }
-          }
-        } else {
-          // For longer periods, group by day
-          const dailyData: { [key: string]: number[] } = {};
-          
-          prices.forEach((price: any) => {
-            const date = new Date(price[0]).toLocaleDateString();
-            if (!dailyData[date]) {
-              dailyData[date] = [];
-            }
-            dailyData[date].push(price[1]);
-          });
-
-          Object.entries(dailyData).forEach(([date, priceValues]) => {
-            if (priceValues.length > 0) {
-              const open = priceValues[0];
-              const close = priceValues[priceValues.length - 1];
-              const high = Math.max(...priceValues);
-              const low = Math.min(...priceValues);
-              const change = ((close - open) / open) * 100;
-
-              rows.push({
-                date,
-                open,
-                high,
-                low,
-                close,
-                change,
-              });
-            }
-          });
-        }
-
-        // Reverse to show most recent first
-        setHistoryData(rows.reverse());
+        const formatted = formatPriceData(prices, timeframe);
+        setPriceData(formatted);
       } catch (error) {
         console.error('Error fetching price history:', error);
-        setHistoryData([]);
+        setPriceData([]);
       }
-
+      
       setIsLoading(false);
     };
 
     fetchHistory();
   }, [coinId, timeframe]);
 
-  const timeframes = [
-    { value: '1', label: '1D' },
-    { value: '7', label: '1W' },
-    { value: '30', label: '1M' },
-    { value: '365', label: '1Y' },
-  ];
+  const getDays = (tf: Timeframe): number => {
+    switch (tf) {
+      case '1D': return 1;
+      case '1W': return 7;
+      case '1M': return 30;
+      case '1Y': return 365;
+      default: return 7;
+    }
+  };
+
+  const formatPriceData = (prices: [number, number][], tf: Timeframe): PriceData[] => {
+    if (!prices || prices.length === 0) return [];
+
+    const interval = tf === '1D' ? 1 : Math.floor(prices.length / 10);
+    const data: PriceData[] = [];
+
+    for (let i = 0; i < prices.length; i += interval) {
+      const chunk = prices.slice(i, Math.min(i + interval, prices.length));
+      if (chunk.length === 0) continue;
+
+      const open = chunk[0][1];
+      const close = chunk[chunk.length - 1][1];
+      const high = Math.max(...chunk.map(p => p[1]));
+      const low = Math.min(...chunk.map(p => p[1]));
+      const change = ((close - open) / open) * 100;
+
+      data.push({
+        date: new Date(chunk[0][0]).toLocaleDateString(),
+        open,
+        high,
+        low,
+        close,
+        change,
+      });
+    }
+
+    return data.reverse();
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-gray-900">Price History</h3>
+    <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+        <h3 className="text-lg sm:text-xl font-bold text-gray-900">Price History</h3>
         
-        {/* Timeframe Buttons */}
+        {/* Timeframe Selector */}
         <div className="flex gap-2">
-          {timeframes.map((tf) => (
+          {(['1D', '1W', '1M', '1Y'] as Timeframe[]).map((tf) => (
             <button
-              key={tf.value}
-              onClick={() => setTimeframe(tf.value as any)}
-              className={`px-3 py-1 rounded-lg text-sm font-medium transition ${
-                timeframe === tf.value
+              key={tf}
+              onClick={() => setTimeframe(tf)}
+              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition text-sm ${
+                timeframe === tf
                   ? 'bg-indigo-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {tf.label}
+              {tf}
             </button>
           ))}
         </div>
       </div>
 
       {isLoading ? (
+        <div className="text-center py-8 text-gray-600">Loading price history...</div>
+      ) : priceData.length === 0 ? (
         <div className="text-center py-8 text-gray-600">
-          <div className="animate-pulse">Loading price history...</div>
-        </div>
-      ) : historyData.length === 0 ? (
-        <div className="text-center py-8 text-gray-600">
-          No historical data available
+          <p>Price history temporarily unavailable</p>
+          <p className="text-sm mt-2">Please try again in a moment</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Open
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   High
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Low
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Close
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                  % Change
+                <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Change
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {historyData.map((row, index) => {
-                const isPositive = row.change >= 0;
-                
-                return (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {row.date}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900">
-                      ${row.open.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: row.open < 1 ? 6 : 2,
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right font-medium text-green-600">
-                      ${row.high.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: row.high < 1 ? 6 : 2,
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right font-medium text-red-600">
-                      ${row.low.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: row.low < 1 ? 6 : 2,
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">
-                      ${row.close.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: row.close < 1 ? 6 : 2,
-                      })}
-                    </td>
-                    <td className={`px-4 py-3 text-sm text-right font-semibold ${
-                      isPositive ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {isPositive ? '+' : ''}{row.change.toFixed(2)}%
-                    </td>
-                  </tr>
-                );
-              })}
+            <tbody className="bg-white divide-y divide-gray-200">
+              {priceData.map((row, idx) => (
+                <tr key={idx} className="hover:bg-gray-50">
+                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                    {row.date}
+                  </td>
+                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">
+                    ${row.open.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-xs sm:text-sm text-green-600">
+                    ${row.high.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-xs sm:text-sm text-red-600">
+                    ${row.low.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-xs sm:text-sm text-gray-900">
+                    ${row.close.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className={`px-3 sm:px-6 py-4 whitespace-nowrap text-right text-xs sm:text-sm font-semibold ${
+                    row.change >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {row.change >= 0 ? '+' : ''}{row.change.toFixed(2)}%
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
