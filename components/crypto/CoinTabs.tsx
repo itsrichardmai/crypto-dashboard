@@ -14,20 +14,22 @@ export default function CoinTabs({ activeTab, setActiveTab }: CoinTabsProps) {
   ];
 
   return (
-    <div className="flex gap-2 border-b-2 border-gray-200 bg-white rounded-t-lg">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => setActiveTab(tab.id as any)}
-          className={`px-6 py-3 font-semibold transition-all ${
-            activeTab === tab.id
-              ? 'border-b-4 border-indigo-600 text-indigo-600 bg-indigo-50'
-              : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
-          }`}
-        >
-          {tab.label}
-        </button>
-      ))}
+    <div className="bg-white rounded-lg shadow-sm mb-6">
+      <div className="flex justify-center border-b-2 border-gray-200">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-6 py-4 font-semibold text-base transition-all ${
+              activeTab === tab.id
+                ? 'border-b-4 border-indigo-600 text-indigo-600 -mb-0.5'
+                : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

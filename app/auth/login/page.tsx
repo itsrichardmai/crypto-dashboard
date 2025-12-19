@@ -23,7 +23,11 @@ export default function LoginPage() {
       await signIn(email, password);
       router.push('/dashboard');
     } catch (err: any) {
-      setError('Invalid email or password');
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Invalid email or password');
+      } else {
+        setError('Failed to sign in');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -45,6 +49,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 p-4">
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+        {/* Home Link */}
+        <Link href="/" className="inline-flex items-center text-indigo-600 hover:text-indigo-800 mb-4">
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back to Home
+        </Link>
+
         <h1 className="text-3xl font-bold text-gray-900 mb-6">Sign In</h1>
         
         {error && (
@@ -73,7 +85,7 @@ export default function LoginPage() {
             <div className="w-full border-t border-gray-300"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+            <span className="px-2 bg-white text-gray-500">Or sign in with email</span>
           </div>
         </div>
 
@@ -101,6 +113,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               required
+              minLength={6}
             />
           </div>
 

@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/layout/Navbar';
+import DemoBanner from '@/components/DemoBanner';
 import { getUserBalance, getUserHoldings, getUserTransactions } from '@/lib/portfolio';
 import { EXCHANGES } from '@/lib/exchangeFees';
 import { getCryptoPrice } from '@/lib/coingecko';
 import type { Holding, Transaction } from '@/lib/portfolio';
+import { DEMO_HOLDINGS, DEMO_TRANSACTIONS, DEMO_BALANCE, DEMO_TOTAL_VALUE, DEMO_TOTAL_GAIN_LOSS, DEMO_TOTAL_GAIN_LOSS_PERCENT } from '@/lib/demoData';
 
-// Symbol mapping
 const SYMBOL_TO_ID: Record<string, string> = {
   'BTC': 'bitcoin', 'ETH': 'ethereum', 'USDT': 'tether', 'BNB': 'binancecoin',
   'SOL': 'solana', 'USDC': 'usd-coin', 'XRP': 'ripple', 'ADA': 'cardano',
@@ -22,21 +23,36 @@ export default function PortfolioPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [balance, setBalance] = useState(10000);
-  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [holdings, setHoldings] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth/login');
+    if (typeof window !== 'undefined') {
+      const demoMode = localStorage.getItem('demoMode') === 'true';
+      setIsDemoMode(demoMode);
+      
+      if (!loading && !user && !demoMode) {
+        router.push('/auth/login');
+      }
     }
   }, [user, loading, router]);
 
   useEffect(() => {
     const loadPortfolioData = async () => {
-      if (user) {
-        setIsLoading(true);
+      setIsLoading(true);
+
+      if (isDemoMode) {
+        // Use demo data
+        setBalance(DEMO_BALANCE);
+        setHoldings(DEMO_HOLDINGS);
+        setTotalValue(DEMO_TOTAL_VALUE);
+        setTransactions(DEMO_TRANSACTIONS);
+        setIsLoading(false);
+      } else if (user) {
+        // Load real data
         const userBalance = await getUserBalance(user.uid);
         setBalance(userBalance);
 
@@ -68,9 +84,9 @@ export default function PortfolioPage() {
     };
 
     loadPortfolioData();
-  }, [user]);
+  }, [user, isDemoMode]);
 
-  if (loading || !user) {
+  if (loading && !isDemoMode) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">Loading...</div>
@@ -79,16 +95,22 @@ export default function PortfolioPage() {
   }
 
   const portfolioTotal = balance + totalValue;
-  const totalGainLoss = totalValue - holdings.reduce((sum, h: any) => sum + h.totalCost, 0);
-  const totalGainLossPercent = holdings.reduce((sum, h: any) => sum + h.totalCost, 0) > 0
-    ? (totalGainLoss / holdings.reduce((sum, h: any) => sum + h.totalCost, 0)) * 100
-    : 0;
+  const totalGainLoss = isDemoMode 
+    ? DEMO_TOTAL_GAIN_LOSS 
+    : totalValue - holdings.reduce((sum, h: any) => sum + h.totalCost, 0);
+  const totalGainLossPercent = isDemoMode
+    ? DEMO_TOTAL_GAIN_LOSS_PERCENT
+    : holdings.reduce((sum, h: any) => sum + h.totalCost, 0) > 0
+      ? (totalGainLoss / holdings.reduce((sum, h: any) => sum + h.totalCost, 0)) * 100
+      : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        {isDemoMode && <DemoBanner />}
+        
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6 sm:mb-8">Portfolio</h1>
 
         {/* Portfolio Summary */}
@@ -218,7 +240,7 @@ export default function PortfolioPage() {
           )}
         </div>
 
-        {/* Transaction History - Scrollable on mobile */}
+        {/* Transaction History */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Transaction History</h2>

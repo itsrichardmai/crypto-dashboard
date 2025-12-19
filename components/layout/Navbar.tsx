@@ -4,24 +4,35 @@ import { useAuth } from '@/lib/AuthContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Navbar() {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsDemoMode(localStorage.getItem('demoMode') === 'true');
+    }
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
+    localStorage.removeItem('demoMode');
     window.location.href = '/';
   };
 
   const isActive = (path: string) => pathname === path;
 
+  // Determine where logo should go
+  const logoHref = user || isDemoMode ? '/dashboard' : '/';
+
   const navLinks = (
     <>
       <Link
-        href={user ? "/dashboard" : "/"}
+        href="/dashboard"
         className={`px-4 py-2 rounded-lg font-medium transition ${
           isActive('/dashboard')
             ? 'bg-white/20 text-white'
@@ -50,28 +61,29 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
+          <Link href={logoHref} className="flex items-center">
             <span className="text-2xl font-bold text-white">CryptoDash</span>
           </Link>
 
           {/* Desktop Navigation */}
-          {user && (
+          {(user || isDemoMode) && (
             <div className="hidden md:flex items-center gap-4">
               {navLinks}
               <div className="h-6 w-px bg-white/30 mx-2" />
-              <span className="text-white/80 text-sm">{user.email}</span>
+              {user && <span className="text-white/80 text-sm">{user.email}</span>}
+              {isDemoMode && <span className="text-slate-300 text-sm font-semibold">Demo Mode</span>}
               <Button
                 onClick={handleSignOut}
                 variant="outline"
-                className="text-white border-white/30 hover:bg-white/10"
+                className="bg-indigo-600 text-white border-2 border-indigo-400 hover:bg-indigo-700"
               >
-                Sign Out
+                {isDemoMode ? 'Exit Demo' : 'Sign Out'}
               </Button>
             </div>
           )}
 
           {/* Mobile Hamburger */}
-          {user && (
+          {(user || isDemoMode) && (
             <button
               className="md:hidden text-white p-2"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -91,11 +103,12 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Menu */}
-        {user && mobileMenuOpen && (
+        {(user || isDemoMode) && mobileMenuOpen && (
           <div className="md:hidden border-t border-white/20 py-4 space-y-2">
             {navLinks}
             <div className="pt-4 border-t border-white/20 space-y-2">
-              <div className="text-white/80 text-sm px-4">{user.email}</div>
+              {user && <div className="text-white/80 text-sm px-4">{user.email}</div>}
+              {isDemoMode && <div className="text-yellow-300 text-sm font-semibold px-4">Demo Mode</div>}
               <button
                 onClick={() => {
                   handleSignOut();
@@ -103,7 +116,7 @@ export default function Navbar() {
                 }}
                 className="w-full text-left px-4 py-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition"
               >
-                Sign Out
+                {isDemoMode ? 'Exit Demo' : 'Sign Out'}
               </button>
             </div>
           </div>

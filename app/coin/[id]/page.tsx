@@ -8,6 +8,7 @@ import Navbar from '@/components/layout/Navbar';
 import CoinTabs from '@/components/crypto/CoinTabs';
 import TradingViewChart from '@/components/crypto/TradingViewChart';
 import NewsSection from '@/components/crypto/NewsSection';
+import AboutSection from '@/components/crypto/AboutSection';
 import PriceHistoryTable from '@/components/crypto/PriceHistoryTable';
 import TradeModal from '@/components/portfolio/TradeModal';
 import { Button } from '@/components/ui/button';
@@ -215,25 +216,12 @@ export default function CoinDetailPage() {
               </div>
 
               {/* About Section */}
-              <div className="bg-white rounded-lg shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">
-                  About {coin.name}
-                </h3>
-                
-                {coin.description?.en ? (
-                  <div 
-                    className="text-gray-700 leading-relaxed prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: coin.description.en }}
-                  />
-                ) : (
-                  <p className="text-gray-600">No description available.</p>
-                )}
-              </div>
+              <AboutSection coin={coin} />
             </div>
           )}
 
           {activeTab === 'news' && (
-            <NewsSection coinSymbol={coin.symbol} />
+            <NewsSection coinSymbol={coin.symbol} coinName={coin.name} />
           )}
 
           {activeTab === 'ai-analysis' && (

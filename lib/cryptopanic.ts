@@ -7,7 +7,7 @@ export interface NewsItem {
   id: number;
   title: string;
   url: string;
-  source?: {  // ← Add question mark
+  source?: {
     title: string;
     domain: string;
   };
@@ -23,6 +23,7 @@ export interface NewsItem {
     title: string;
   }>;
 }
+
 export interface NewsResponse {
   count: number;
   next: string | null;
@@ -43,32 +44,33 @@ export async function getNews(
 ): Promise<NewsItem[]> {
   try {
     const params: any = {
+      auth_token: API_KEY,
       filter: filter,
+      regions: regions,
+      kind: 'news',
     };
 
+    // Add currency filter if provided
     if (currencies && currencies.length > 0) {
       params.currencies = currencies.join(',');
     }
 
-    // Call our API proxy instead of CryptoPanic directly
-    const response = await axios.get<NewsResponse>('/api/news', {
+    const response = await axios.get<NewsResponse>(`${BASE_URL}/posts/`, {
       params,
     });
 
     return response.data.results;
   } catch (error) {
-    console.error('Error fetching news:', error);
+    console.error('Error fetching news from CryptoPanic:', error);
     return [];
   }
 }
+
 /**
  * Get sentiment for a news item
  */
 export function getSentiment(item: NewsItem): 'bullish' | 'bearish' | 'neutral' {
-  // Check if votes exist
-  if (!item.votes) {
-    return 'neutral';
-  }
+  if (!item.votes) return 'neutral';
   
   const { positive, negative } = item.votes;
   

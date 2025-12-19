@@ -7,7 +7,9 @@ import { getTopCryptos } from '@/lib/coingecko';
 import type { CryptoAsset } from '@/types/crypto';
 import CoinCard from '@/components/crypto/CoinCard';
 import Navbar from '@/components/layout/Navbar';
-import ExploreCrypto from '@/components/crypto/ExploreCrypto';
+// import ExploreCrypto from '@/components/crypto/ExploreCrypto'; // REMOVED - causing infinite loop
+import DemoBanner from '@/components/DemoBanner';
+import { DEMO_CRYPTOS } from '@/lib/demoData';
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -15,27 +17,38 @@ export default function DashboardPage() {
   const [cryptos, setCryptos] = useState<CryptoAsset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth/login');
+    // Check for demo mode on mount only
+    if (typeof window !== 'undefined') {
+      const demoMode = localStorage.getItem('demoMode') === 'true';
+      setIsDemoMode(demoMode);
     }
-  }, [user, loading, router]);
+  }, []); // Empty dependency array - run once on mount
 
   useEffect(() => {
     const fetchCryptos = async () => {
-      setIsLoading(true);
-      const data = await getTopCryptos(12);
-      setCryptos(data);
-      setIsLoading(false);
+      if (isDemoMode) {
+        // Use demo data
+        setIsLoading(true);
+        setCryptos(DEMO_CRYPTOS);
+        setIsLoading(false);
+      } else if (user) {
+        // Fetch real data for logged-in users
+        setIsLoading(true);
+        const data = await getTopCryptos(12);
+        setCryptos(data);
+        setIsLoading(false);
+      } else {
+        setIsLoading(false);
+      }
     };
 
-    if (user) {
-      fetchCryptos();
-    }
-  }, [user]);
+    fetchCryptos();
+  }, [user, isDemoMode]);
 
-  if (loading || !user) {
+  if (loading && !isDemoMode) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-xl">Loading...</div>
@@ -52,17 +65,20 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        {/* Demo Banner */}
+        {isDemoMode && <DemoBanner />}
+
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
             Cryptocurrency Market
           </h1>
           <p className="text-sm sm:text-base text-gray-600">
-            Live prices and market data
+            {isDemoMode ? 'Demo data - Sign up to see live prices' : 'Live prices and market data'}
           </p>
         </div>
 
-        <ExploreCrypto />
+        {/* ExploreCrypto removed temporarily - was causing infinite loop */}
 
         {/* Search Bar */}
         <div className="mb-6">
