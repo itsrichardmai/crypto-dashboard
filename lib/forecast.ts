@@ -4,6 +4,90 @@ const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
 const COINGECKO_BASE_URL = process.env.NEXT_PUBLIC_COINGECKO_API_URL;
 const COINGECKO_API_KEY = process.env.NEXT_PUBLIC_COINGECKO_API_KEY;
 
+// Robust JSON extraction function to handle various Perplexity response formats
+function extractJSON(responseText: string): any {
+  // Try direct parse first
+  try {
+    return JSON.parse(responseText.trim());
+  } catch {
+    // Continue with extraction attempts
+  }
+
+  // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+  let cleaned = responseText
+    .replace(/^[\s\S]*?```(?:json)?\s*/i, '') // Remove everything before and including opening ```
+    .replace(/\s*```[\s\S]*$/i, '')           // Remove closing ``` and everything after
+    .trim();
+
+  // Try parsing after removing code blocks
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Continue with more aggressive extraction
+  }
+
+  // Try to find JSON object pattern in the response
+  const jsonObjectMatch = responseText.match(/\{[\s\S]*\}/);
+  if (jsonObjectMatch) {
+    try {
+      return JSON.parse(jsonObjectMatch[0]);
+    } catch {
+      // Continue with more cleaning
+    }
+  }
+
+  // More aggressive cleaning: remove common wrapper text
+  cleaned = responseText
+    .replace(/^[\s\S]*?(?=\{)/m, '')  // Remove everything before first {
+    .replace(/\}[\s\S]*$/m, '}')      // Remove everything after last }
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Final attempt: try to fix common JSON issues
+  }
+
+  // Fix common issues: trailing commas, unescaped quotes in strings
+  cleaned = cleaned
+    .replace(/,(\s*[}\]])/g, '$1')           // Remove trailing commas
+    .replace(/([{,]\s*)(\w+):/g, '$1"$2":'); // Add quotes to unquoted keys
+
+  try {
+    return JSON.parse(cleaned);
+  } catch (finalError) {
+    console.error('All JSON extraction attempts failed:', finalError);
+    console.error('Original response (first 500 chars):', responseText.substring(0, 500));
+    return null;
+  }
+}
+
+// Retry wrapper for API calls with exponential backoff
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      console.error(`Forecast attempt ${attempt + 1}/${maxRetries} failed:`, error.message);
+
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`Retrying forecast in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 // Types for historical data and forecasts
 export interface OHLCData {
   timestamp: number;
@@ -446,6 +530,94 @@ CRITICAL REQUIREMENTS:
 - Aggregate real analyst opinions where available`;
 }
 
+// Default fallback forecast for when API fails
+function getDefaultForecast(
+  coinId: string,
+  coinName: string,
+  symbol: string,
+  currentPrice: number,
+  stats: StatisticalAnalysis
+): ForecastResult {
+  const createTimeframe = (label: string, period: string, multiplier: number): TimeframeForecast => ({
+    label,
+    period,
+    priceTargets: {
+      low: currentPrice * (1 - stats.stdDev / stats.mean * multiplier),
+      average: currentPrice,
+      high: currentPrice * (1 + stats.stdDev / stats.mean * multiplier),
+    },
+    percentageChange: {
+      low: -(stats.stdDev / stats.mean) * multiplier * 100,
+      average: 0,
+      high: (stats.stdDev / stats.mean) * multiplier * 100,
+    },
+    probability: { bullish: 33, bearish: 33, neutral: 34 },
+    confidence: 50,
+    reasoning: 'Forecast data temporarily unavailable. Please refresh to load full analysis.',
+  });
+
+  return {
+    coinId,
+    coinName,
+    symbol,
+    currentPrice,
+    generatedAt: new Date().toISOString(),
+    timeframes: {
+      shortTerm: createTimeframe('Short-Term', '24h - 7 days', 1),
+      mediumTerm: createTimeframe('Medium-Term', '1-4 weeks', 1.5),
+      longTerm: createTimeframe('Long-Term', '1-3 months', 2),
+    },
+    technicalIndicators: {
+      rsi: stats.rsi,
+      rsiSignal: stats.rsi > 70 ? 'overbought' : stats.rsi < 30 ? 'oversold' : 'neutral',
+      macdSignal: 'neutral',
+      movingAverages: {
+        ma7: stats.movingAvg7d,
+        ma30: stats.movingAvg30d,
+        ma90: stats.mean,
+        signal: currentPrice > stats.movingAvg30d ? 'bullish' : 'bearish',
+      },
+      bollingerBands: {
+        upper: stats.bollingerUpper,
+        middle: (stats.bollingerUpper + stats.bollingerLower) / 2,
+        lower: stats.bollingerLower,
+        position: currentPrice > stats.bollingerUpper ? 'above' : currentPrice < stats.bollingerLower ? 'below' : 'within',
+      },
+      volumeAnalysis: 'Volume analysis temporarily unavailable',
+    },
+    statisticalModel: {
+      methodology: 'Fallback statistical model',
+      confidenceLevel: 50,
+      dataPoints: 90,
+      volatilityAdjustment: stats.volatility,
+    },
+    marketFactors: {
+      btcCorrelation: 'Correlation data temporarily unavailable',
+      marketSentiment: 'Sentiment data temporarily unavailable',
+      keyEvents: ['Full analysis loading...'],
+      riskFactors: ['Please refresh for complete risk assessment'],
+    },
+    tradingStrategy: {
+      recommendation: 'hold',
+      entryPoint: currentPrice * 0.98,
+      stopLoss: currentPrice * 0.92,
+      takeProfit1: currentPrice * 1.05,
+      takeProfit2: currentPrice * 1.12,
+      takeProfit3: currentPrice * 1.20,
+      riskRewardRatio: 2.5,
+      positionSizing: 'Strategy data temporarily unavailable',
+    },
+    analystConsensus: {
+      bullishPercent: 33,
+      bearishPercent: 33,
+      neutralPercent: 34,
+      averageTarget: currentPrice,
+      sources: ['Fallback estimates - full analysis loading'],
+    },
+    disclaimer: 'This is a fallback forecast. Full AI analysis temporarily unavailable. Please try again in a few moments. This should not be considered financial advice.',
+  };
+}
+
 // Main forecast function
 export async function generateForecast(
   coinId: string,
@@ -475,63 +647,69 @@ export async function generateForecast(
   // Build prompt and call Perplexity
   const prompt = buildForecastPrompt(coinName, symbol, currentPrice, stats, ohlcData, marketData);
 
-  const response = await axios.post(
-    PERPLEXITY_API_URL,
-    {
-      model: 'sonar-pro',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a quantitative technical analyst specializing in cryptocurrency markets. Your forecasts are used by professional traders for position sizing and risk management.
-
-Guidelines:
-- Base all price targets on statistical analysis (standard deviations from mean)
-- Provide specific entry/exit levels derived from support/resistance
-- Calculate risk/reward ratios for all trade recommendations
-- Use real-time market data and cite analyst sources
-- Maintain conservative bias - underestimate gains, overestimate risks
-- Always respond with valid JSON only, no markdown`,
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.1,
-      max_tokens: 5000,
-      search_recency_filter: 'day',
-    },
-    {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+  const makeRequest = async (): Promise<ForecastResult> => {
+    const response = await axios.post(
+      PERPLEXITY_API_URL,
+      {
+        model: 'sonar-pro',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a quantitative technical analyst. Output ONLY valid JSON matching the exact schema provided. No markdown, no code blocks, no explanatory text before or after the JSON. Start your response with { and end with }.`,
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 5000,
+        search_recency_filter: 'day',
       },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000, // 60 second timeout
+      }
+    );
+
+    const content = response.data.choices[0].message.content;
+
+    // Use robust JSON extraction
+    const forecastData = extractJSON(content);
+
+    if (!forecastData) {
+      throw new Error('Failed to extract valid JSON from forecast response');
     }
-  );
 
-  const content = response.data.choices[0].message.content;
+    // Validate required fields
+    if (!forecastData.timeframes || !forecastData.technicalIndicators) {
+      throw new Error('Forecast response missing required fields');
+    }
 
-  // Parse JSON response
-  let forecastData;
-  try {
-    const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) ||
-                      content.match(/```\s*([\s\S]*?)\s*```/);
-    const jsonString = jsonMatch ? jsonMatch[1] : content;
-    forecastData = JSON.parse(jsonString.trim());
-  } catch (parseError) {
-    console.error('Failed to parse forecast response:', parseError);
-    throw new Error('Failed to parse AI forecast response');
-  }
-
-  return {
-    coinId,
-    coinName,
-    symbol,
-    currentPrice,
-    generatedAt: new Date().toISOString(),
-    ...forecastData,
-    disclaimer: 'This forecast is generated by AI using statistical models and should not be considered financial advice. Cryptocurrency investments are highly volatile and speculative. Past performance does not guarantee future results. Always conduct your own research and consult a financial advisor before making investment decisions. Never invest more than you can afford to lose.',
+    return {
+      coinId,
+      coinName,
+      symbol,
+      currentPrice,
+      generatedAt: new Date().toISOString(),
+      ...forecastData,
+      disclaimer: 'This forecast is generated by AI using statistical models and should not be considered financial advice. Cryptocurrency investments are highly volatile and speculative. Past performance does not guarantee future results. Always conduct your own research and consult a financial advisor before making investment decisions. Never invest more than you can afford to lose.',
+    };
   };
+
+  try {
+    // Use retry logic with 3 attempts
+    return await withRetry(makeRequest, 3, 1500);
+  } catch (error: any) {
+    console.error('Forecast API error after retries:', error.response?.data || error.message);
+
+    // Return fallback forecast instead of throwing
+    console.log('Returning fallback forecast due to API failure');
+    return getDefaultForecast(coinId, coinName, symbol, currentPrice, stats);
+  }
 }
 
 // Helper functions for UI

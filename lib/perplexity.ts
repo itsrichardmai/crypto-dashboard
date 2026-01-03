@@ -2,6 +2,90 @@ import axios from 'axios';
 
 const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
 
+// Robust JSON extraction function to handle various Perplexity response formats
+function extractJSON(responseText: string): any {
+  // Try direct parse first
+  try {
+    return JSON.parse(responseText.trim());
+  } catch {
+    // Continue with extraction attempts
+  }
+
+  // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+  let cleaned = responseText
+    .replace(/^[\s\S]*?```(?:json)?\s*/i, '') // Remove everything before and including opening ```
+    .replace(/\s*```[\s\S]*$/i, '')           // Remove closing ``` and everything after
+    .trim();
+
+  // Try parsing after removing code blocks
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Continue with more aggressive extraction
+  }
+
+  // Try to find JSON object pattern in the response
+  const jsonObjectMatch = responseText.match(/\{[\s\S]*\}/);
+  if (jsonObjectMatch) {
+    try {
+      return JSON.parse(jsonObjectMatch[0]);
+    } catch {
+      // Continue with more cleaning
+    }
+  }
+
+  // More aggressive cleaning: remove common wrapper text
+  cleaned = responseText
+    .replace(/^[\s\S]*?(?=\{)/m, '')  // Remove everything before first {
+    .replace(/\}[\s\S]*$/m, '}')      // Remove everything after last }
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    // Final attempt: try to fix common JSON issues
+  }
+
+  // Fix common issues: trailing commas, unescaped quotes in strings
+  cleaned = cleaned
+    .replace(/,(\s*[}\]])/g, '$1')           // Remove trailing commas
+    .replace(/([{,]\s*)(\w+):/g, '$1"$2":'); // Add quotes to unquoted keys
+
+  try {
+    return JSON.parse(cleaned);
+  } catch (finalError) {
+    console.error('All JSON extraction attempts failed:', finalError);
+    console.error('Original response (first 500 chars):', responseText.substring(0, 500));
+    return null;
+  }
+}
+
+// Retry wrapper for API calls with exponential backoff
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      lastError = error;
+      console.error(`Attempt ${attempt + 1}/${maxRetries} failed:`, error.message);
+
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 export interface CoinMarketData {
   name: string;
   symbol: string;
@@ -246,13 +330,91 @@ CRITICAL REQUIREMENTS:
 - Provide actionable insights suitable for professional traders and investors`;
 }
 
+// Default fallback analysis for when API fails
+function getDefaultAnalysis(coinData: CoinMarketData): AIAnalysisResult {
+  const trend = coinData.priceChange24h > 2 ? 'bullish' : coinData.priceChange24h < -2 ? 'bearish' : 'neutral';
+  const sentiment = coinData.priceChange24h > 5 ? 'bullish' : coinData.priceChange24h < -5 ? 'bearish' : 'neutral';
+
+  return {
+    executiveSummary: `${coinData.name} (${coinData.symbol.toUpperCase()}) is currently trading at $${coinData.currentPrice.toLocaleString()} with a ${coinData.priceChange24h.toFixed(2)}% change in the last 24 hours. Market cap ranks #${coinData.marketCapRank}. Analysis data is temporarily unavailable - please try again shortly.`,
+    fundamentalAnalysis: {
+      historicalOverview: 'Historical data temporarily unavailable. Please refresh to load full analysis.',
+      tokenomics: {
+        supply: `Circulating: ${coinData.circulatingSupply?.toLocaleString() || 'N/A'}`,
+        distribution: 'Distribution data temporarily unavailable.',
+        inflationBurn: 'Inflation/burn data temporarily unavailable.',
+      },
+      networkMetrics: {
+        tvl: 'Data temporarily unavailable',
+        activeAddresses: 'Data temporarily unavailable',
+        transactionVolume: 'Data temporarily unavailable',
+        developerActivity: 'Data temporarily unavailable',
+      },
+      adoption: {
+        corporateIntegrations: ['Data temporarily unavailable'],
+        institutionalHoldings: 'Data temporarily unavailable',
+        partnerships: ['Data temporarily unavailable'],
+      },
+      strengths: ['Market position data loading...'],
+      weaknesses: ['Risk assessment data loading...'],
+    },
+    technicalAnalysis: {
+      trend: trend as 'bullish' | 'bearish' | 'neutral',
+      trendStrength: 'moderate',
+      supportLevels: [{ price: `$${(coinData.currentPrice * 0.95).toFixed(2)}`, strength: 'Estimated' }],
+      resistanceLevels: [{ price: `$${(coinData.currentPrice * 1.05).toFixed(2)}`, strength: 'Estimated' }],
+      indicators: {
+        rsi: { value: 50, signal: 'Data loading...' },
+        macd: { signal: 'neutral', histogram: 'Data loading...' },
+        ema: { ema50: 'N/A', ema200: 'N/A', crossover: 'Data loading...' },
+        bollingerBands: { position: 'N/A', bandwidth: 'Data loading...' },
+        volumeProfile: 'Volume data loading...',
+      },
+      patterns: [],
+    },
+    marketSentiment: {
+      overall: sentiment as 'bullish' | 'bearish' | 'neutral',
+      fearGreedIndex: 50,
+      socialVolume: 'Data temporarily unavailable',
+      institutionalFlow: 'Data temporarily unavailable',
+      retailActivity: 'Data temporarily unavailable',
+      newsImpact: 'Data temporarily unavailable',
+    },
+    riskAssessment: {
+      level: 'medium',
+      volatilityScore: 5,
+      factors: ['Full risk analysis temporarily unavailable'],
+      blackSwanRisks: ['Please refresh for complete analysis'],
+      regulatoryRisks: 'Regulatory data loading...',
+    },
+    tradingInsights: {
+      shortTerm: { outlook: 'Analysis loading...', strategy: 'Please refresh', keyLevels: [] },
+      mediumTerm: { outlook: 'Analysis loading...', strategy: 'Please refresh', keyLevels: [] },
+      longTerm: { outlook: 'Analysis loading...', strategy: 'Please refresh', keyLevels: [] },
+    },
+    analystConsensus: {
+      rating: 'hold',
+      priceTargets: {
+        bearCase: { price: `$${(coinData.currentPrice * 0.8).toFixed(2)}`, probability: 25 },
+        baseCase: { price: `$${coinData.currentPrice.toFixed(2)}`, probability: 50 },
+        bullCase: { price: `$${(coinData.currentPrice * 1.2).toFixed(2)}`, probability: 25 },
+      },
+      timeframe: '3-6 months',
+      sources: ['Fallback estimates - full analysis loading'],
+    },
+    sources: [],
+    lastUpdated: new Date().toISOString(),
+    disclaimer: 'This is a fallback response. Full AI analysis temporarily unavailable. Please try again in a few moments. This should not be considered financial advice.',
+  };
+}
+
 export async function getPerplexityAnalysis(
   coinData: CoinMarketData,
   apiKey: string
 ): Promise<AIAnalysisResult> {
   const prompt = buildAnalysisPrompt(coinData);
 
-  try {
+  const makeRequest = async (): Promise<AIAnalysisResult> => {
     const response = await axios.post(
       PERPLEXITY_API_URL,
       {
@@ -260,15 +422,7 @@ export async function getPerplexityAnalysis(
         messages: [
           {
             role: 'system',
-            content: `You are a senior cryptocurrency analyst with expertise in fundamental analysis, technical analysis, and quantitative research. Your analysis is used by professional traders and institutional investors.
-
-Guidelines:
-- Provide evidence-based analysis with specific data points
-- Use real-time market data and cite sources when possible
-- All price targets must be specific dollar amounts with probability weights
-- Focus on actionable insights, not speculation
-- Maintain professional, objective tone without hype or promotional language
-- Always respond with valid JSON only, no markdown formatting`,
+            content: `You are a senior cryptocurrency analyst. Output ONLY valid JSON matching the exact schema provided. No markdown, no code blocks, no explanatory text before or after the JSON. Start your response with { and end with }.`,
           },
           {
             role: 'user',
@@ -284,22 +438,22 @@ Guidelines:
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
+        timeout: 60000, // 60 second timeout
       }
     );
 
     const content = response.data.choices[0].message.content;
 
-    // Parse the JSON response
-    let analysisData;
-    try {
-      // Try to extract JSON if wrapped in code blocks
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) ||
-                        content.match(/```\s*([\s\S]*?)\s*```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : content;
-      analysisData = JSON.parse(jsonString.trim());
-    } catch (parseError) {
-      console.error('Failed to parse Perplexity response:', parseError);
-      throw new Error('Failed to parse AI analysis response');
+    // Use robust JSON extraction
+    const analysisData = extractJSON(content);
+
+    if (!analysisData) {
+      throw new Error('Failed to extract valid JSON from AI response');
+    }
+
+    // Validate required fields exist
+    if (!analysisData.executiveSummary || !analysisData.fundamentalAnalysis) {
+      throw new Error('AI response missing required fields');
     }
 
     return {
@@ -307,9 +461,17 @@ Guidelines:
       lastUpdated: new Date().toISOString(),
       disclaimer: 'This analysis is generated by AI using real-time market data and should not be considered financial advice. Cryptocurrency investments are highly volatile and speculative. Past performance does not guarantee future results. Always conduct independent research and consult a qualified financial advisor before making investment decisions.',
     };
+  };
+
+  try {
+    // Use retry logic with 3 attempts
+    return await withRetry(makeRequest, 3, 1500);
   } catch (error: any) {
-    console.error('Perplexity API error:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.error?.message || 'Failed to get AI analysis');
+    console.error('Perplexity API error after retries:', error.response?.data || error.message);
+
+    // Return fallback analysis instead of throwing
+    console.log('Returning fallback analysis due to API failure');
+    return getDefaultAnalysis(coinData);
   }
 }
 

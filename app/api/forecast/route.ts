@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateForecast } from '@/lib/forecast';
+import { canUseForecast, recordForecastUsage, isPremiumUser } from '@/lib/aiUsage';
 
 // Cache for forecast results (30 minutes TTL for forecasts)
 const forecastCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
-
-// Track free trial usage per user (in production, store in Firestore)
-const freeTrialUsage = new Map<string, { analysisUsed: boolean; forecastUsed: boolean }>();
-
-// Premium user IDs - add your test account Firebase UID here
-const PREMIUM_USER_IDS = new Set([
-  // Add your Firebase UID here for unlimited access
-  'your-firebase-uid-here',
-]);
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,16 +36,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if premium user (unlimited access)
-    const isPremium = PREMIUM_USER_IDS.has(userId);
+    // Check if user can use forecast (persisted in Firestore)
+    const usageCheck = await canUseForecast(userId);
 
-    // Check free trial status
-    const userTrialStatus = freeTrialUsage.get(userId) || { analysisUsed: false, forecastUsed: false };
-
-    if (!isPremium && userTrialStatus.forecastUsed) {
+    if (!usageCheck.allowed) {
       return NextResponse.json(
         {
-          error: 'Free trial used. Upgrade to premium for unlimited forecasts.',
+          error: usageCheck.reason,
           trialExpired: true,
           isPremiumRequired: true
         },
@@ -61,12 +50,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark free trial as used (only for non-premium users)
-    if (!isPremium) {
-      freeTrialUsage.set(userId, { ...userTrialStatus, forecastUsed: true });
-    }
+    const isPremium = isPremiumUser(userId);
 
-    // Check cache
+    // Check cache first
     const cacheKey = `forecast-${coinId}-${new Date().toDateString()}`;
     const cached = forecastCache.get(cacheKey);
 
@@ -76,6 +62,11 @@ export async function POST(request: NextRequest) {
         cached: true,
         cacheAge: Math.round((Date.now() - cached.timestamp) / 1000 / 60),
       });
+    }
+
+    // Record usage for non-premium users (persisted to Firestore)
+    if (!isPremium) {
+      await recordForecastUsage(userId);
     }
 
     // Generate fresh forecast

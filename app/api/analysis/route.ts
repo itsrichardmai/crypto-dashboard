@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPerplexityAnalysis, CoinMarketData } from '@/lib/perplexity';
+import { canUseAnalysis, recordAnalysisUsage, isPremiumUser } from '@/lib/aiUsage';
 
 // Cache for analysis results (1 hour TTL)
 const analysisCache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
-
-// Track free trial usage per user (in production, store in Firestore)
-const freeTrialUsage = new Map<string, { analysisUsed: boolean; forecastUsed: boolean }>();
-
-// Premium user IDs - add your test account Firebase UID here
-const PREMIUM_USER_IDS = new Set([
-  // Add your Firebase UID here for unlimited access
-  'your-firebase-uid-here',
-]);
-
-// Export for sharing with forecast route
-export { freeTrialUsage, PREMIUM_USER_IDS };
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,22 +35,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if premium user (unlimited access)
-    const isPremium = PREMIUM_USER_IDS.has(userId);
+    // Check if user can use analysis (persisted in Firestore)
+    const usageCheck = await canUseAnalysis(userId);
 
-    // Check free trial status
-    const userTrialStatus = freeTrialUsage.get(userId) || { analysisUsed: false, forecastUsed: false };
-
-    if (!isPremium && userTrialStatus.analysisUsed) {
+    if (!usageCheck.allowed) {
       return NextResponse.json(
         {
-          error: 'Free trial used. Upgrade to premium for unlimited AI analysis.',
+          error: usageCheck.reason,
           trialExpired: true,
           isPremiumRequired: true
         },
         { status: 403 }
       );
     }
+
+    const isPremium = isPremiumUser(userId);
 
     // Check cache first (cached results don't count against trial)
     const cacheKey = `${coinData.symbol.toLowerCase()}-${new Date().toDateString()}`;
@@ -72,13 +60,13 @@ export async function POST(request: NextRequest) {
         analysis: cached.data,
         cached: true,
         cacheAge: Math.round((Date.now() - cached.timestamp) / 1000 / 60),
-        trialUsed: !isPremium && userTrialStatus.analysisUsed,
+        trialUsed: !isPremium,
       });
     }
 
-    // Mark free trial as used (only for non-premium users, only for fresh requests)
+    // Record usage for non-premium users (persisted to Firestore)
     if (!isPremium) {
-      freeTrialUsage.set(userId, { ...userTrialStatus, analysisUsed: true });
+      await recordAnalysisUsage(userId);
     }
 
     // Get fresh analysis from Perplexity
