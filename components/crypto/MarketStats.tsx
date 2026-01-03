@@ -15,9 +15,8 @@ export default function MarketStats() {
   useEffect(() => {
     const fetchGlobal = async () => {
       try {
-        const response = await axios.get(
-          'https://api.coingecko.com/api/v3/global'
-        );
+        // Use API route to avoid CORS issues
+        const response = await axios.get('/api/global');
         setData({
           total_market_cap: response.data.data.total_market_cap.usd,
           total_volume: response.data.data.total_volume.usd,

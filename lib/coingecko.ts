@@ -52,25 +52,15 @@ export async function getCryptoDetails(id: string) {
   }
 
   try {
-    // Add delay to prevent rate limiting
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const response = await axios.get(`${BASE_URL}/coins/${id}`, {
-      params: {
-        localization: false,
-        tickers: false,
-        community_data: false,
-        developer_data: false,
-      },
-      headers: getHeaders(),
-    });
-    
+    // Use API route to avoid CORS issues
+    const response = await axios.get(`/api/coin/${id}`);
+
     // Store in cache
     cache.set(id, {
       data: response.data,
       timestamp: Date.now()
     });
-    
+
     return response.data;
   } catch (error) {
     console.error('Error fetching crypto details:', error);

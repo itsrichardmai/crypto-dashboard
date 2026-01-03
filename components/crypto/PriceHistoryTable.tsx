@@ -18,14 +18,6 @@ interface PriceData {
   change: number;
 }
 
-const API_KEY = process.env.NEXT_PUBLIC_COINGECKO_API_KEY;
-
-const getHeaders = () => {
-  return API_KEY ? {
-    'x-cg-demo-api-key': API_KEY
-  } : {};
-};
-
 export default function PriceHistoryTable({ coinId }: PriceHistoryTableProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>('1W');
   const [priceData, setPriceData] = useState<PriceData[]>([]);
@@ -34,20 +26,11 @@ export default function PriceHistoryTable({ coinId }: PriceHistoryTableProps) {
   useEffect(() => {
     const fetchHistory = async () => {
       setIsLoading(true);
-      
+
       try {
-        // Add delay to prevent rate limiting
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
+        // Use API route to avoid CORS issues
         const response = await axios.get(
-          `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
-          {
-            params: {
-              vs_currency: 'usd',
-              days: getDays(timeframe),
-            },
-            headers: getHeaders(),
-          }
+          `/api/market-chart/${coinId}?days=${getDays(timeframe)}`
         );
 
         const prices = response.data.prices;
@@ -57,7 +40,7 @@ export default function PriceHistoryTable({ coinId }: PriceHistoryTableProps) {
         console.error('Error fetching price history:', error);
         setPriceData([]);
       }
-      
+
       setIsLoading(false);
     };
 
