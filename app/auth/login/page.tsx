@@ -10,8 +10,10 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signInWithGoogle } = useAuth();
+  const [showResetForm, setShowResetForm] = useState(false);
+  const { signIn, signInWithGoogle, resetPassword } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,6 +48,30 @@ export default function LoginPage() {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email address');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await resetPassword(email);
+      setSuccess('Password reset email sent! Check your inbox.');
+      setShowResetForm(false);
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email');
+      } else {
+        setError('Failed to send reset email. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 p-4">
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
@@ -62,6 +88,12 @@ export default function LoginPage() {
         {error && (
           <div className="bg-red-50 text-red-600 p-3 rounded mb-4">
             {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-50 text-green-600 p-3 rounded mb-4">
+            {success}
           </div>
         )}
 
@@ -117,10 +149,48 @@ export default function LoginPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </Button>
+          <div className="flex items-center justify-between">
+            <Button type="submit" className="flex-1 mr-2" disabled={isLoading}>
+              {isLoading ? 'Signing in...' : 'Sign In'}
+            </Button>
+          </div>
         </form>
+
+        <button
+          onClick={() => {
+            setShowResetForm(true);
+            setError('');
+            setSuccess('');
+          }}
+          className="w-full text-center text-sm text-indigo-600 hover:underline mt-3"
+        >
+          Forgot your password?
+        </button>
+
+        {showResetForm && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <h3 className="text-sm font-medium text-gray-900 mb-2">Reset Password</h3>
+            <p className="text-xs text-gray-600 mb-3">
+              Enter your email above and click the button below to receive a reset link.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={handleResetPassword}
+                disabled={isLoading || !email}
+                className="flex-1"
+                variant="outline"
+              >
+                {isLoading ? 'Sending...' : 'Send Reset Email'}
+              </Button>
+              <Button
+                onClick={() => setShowResetForm(false)}
+                variant="ghost"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
 
         <p className="text-center text-gray-600 mt-4">
           Don't have an account?{' '}

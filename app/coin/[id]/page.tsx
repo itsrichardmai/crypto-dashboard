@@ -10,6 +10,8 @@ import TradingViewChart from '@/components/crypto/TradingViewChart';
 import NewsSection from '@/components/crypto/NewsSection';
 import AboutSection from '@/components/crypto/AboutSection';
 import PriceHistoryTable from '@/components/crypto/PriceHistoryTable';
+import AIAnalysisSection from '@/components/crypto/AIAnalysisSection';
+import ForecastSection from '@/components/crypto/ForecastSection';
 import TradeModal from '@/components/portfolio/TradeModal';
 import { Button } from '@/components/ui/button';
 import { getUserBalance, getUserHoldings, executeBuyWithFees, executeSellWithFees } from '@/lib/portfolio';
@@ -225,19 +227,11 @@ export default function CoinDetailPage() {
           )}
 
           {activeTab === 'ai-analysis' && (
-            <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-              <div className="text-gray-600 text-lg">
-                AI Analysis coming soon...
-              </div>
-            </div>
+            <AIAnalysisSection coin={coin} />
           )}
 
           {activeTab === 'forecast' && (
-            <div className="bg-white rounded-lg shadow-lg p-12 text-center">
-              <div className="text-gray-600 text-lg">
-                Price Forecast coming soon...
-              </div>
-            </div>
+            <ForecastSection coin={coin} />
           )}
         </div>
       </div>
