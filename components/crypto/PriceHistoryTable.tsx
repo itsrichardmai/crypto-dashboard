@@ -60,7 +60,9 @@ export default function PriceHistoryTable({ coinId }: PriceHistoryTableProps) {
   const formatPriceData = (prices: [number, number][], tf: Timeframe): PriceData[] => {
     if (!prices || prices.length === 0) return [];
 
-    const interval = tf === '1D' ? 1 : Math.floor(prices.length / 10);
+    // For 1D, limit to 10 data points; for others, divide into ~10 intervals
+    const targetPoints = 10;
+    const interval = Math.max(1, Math.floor(prices.length / targetPoints));
     const data: PriceData[] = [];
 
     for (let i = 0; i < prices.length; i += interval) {
@@ -117,7 +119,7 @@ export default function PriceHistoryTable({ coinId }: PriceHistoryTableProps) {
           <p className="text-sm mt-2">Please try again in a moment</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div>
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>

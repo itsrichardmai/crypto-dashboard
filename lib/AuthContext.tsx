@@ -54,11 +54,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
-    
+
     // Create user profile if new user
     const userRef = doc(db, 'users', result.user.uid);
     const userSnap = await getDoc(userRef);
-    
+
     if (!userSnap.exists()) {
       await setDoc(userRef, {
         email: result.user.email,
