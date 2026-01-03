@@ -6,7 +6,7 @@ import { AuthProvider } from '@/lib/AuthContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Crypto Trading Dashboard',
+  title: 'Crypto Analysis Dashboard',
   description: 'Professional crypto analysis and paper trading',
 };
 

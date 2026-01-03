@@ -43,7 +43,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-950 via-blue-900 to-slate-900 p-4">
       <div className="text-center space-y-6 max-w-3xl">
         <h1 className="text-5xl sm:text-6xl font-bold text-white">
-          Crypto Trading Dashboard
+          Crypto Analysis Dashboard
         </h1>
         <p className="text-lg sm:text-xl text-purple-200">
           Professional crypto analysis, paper trading, and portfolio management - completely free
